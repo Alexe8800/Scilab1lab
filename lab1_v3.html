@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>ЛР1 — вариант 3 — JavaScript + Chart.js</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; background: #fff; }
+  h2 { color: #234; margin-top: 30px; }
+  .chart-box { width: 100%; max-width: 1100px; margin-bottom: 40px; }
+  pre  { background: #f3f3f3; padding: 10px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<h2>Амплитудная модуляция (вариант 3)</h2>
+<div class="chart-box"><canvas id="amChart"></canvas></div>
+
+<h2>Частотная модуляция (вариант 3)</h2>
+<div class="chart-box"><canvas id="fmChart"></canvas></div>
+
+<h2>Первые 10 значений сигналов (аналог командного окна Scilab)</h2>
+<pre id="log"></pre>
+
+<script>
+// ============================================================
+// 1. Диапазон времени t = 1.0 ... 3.0 с шагом 0.001
+// ============================================================
+const dt     = 0.001;
+const tStart = 1.0;
+const tEnd   = 3.0;
+const N      = Math.round((tEnd - tStart) / dt) + 1;
+
+const t   = new Array(N);
+const A   = new Array(N);   // модулирующий
+const Am  = new Array(N);   // -A (отражённый)
+const Fam = new Array(N);   // АМ-сигнал
+const Ffm = new Array(N);   // ЧМ-сигнал
+
+// ============================================================
+// 2. Частоты (вариант 3)
+// ============================================================
+const W1 = 2 * Math.PI * 0.6;   // W1/2pi = 0.6
+const W2 = 2 * Math.PI * 0.9;   // W2/2pi = 0.9
+const W0 = 2 * Math.PI * 10;    // несущая: W0/2pi = 10
+const K  = 2 * Math.PI * 5;     // индекс девиации
+
+// ============================================================
+// 3. Вычисление массивов
+// ============================================================
+for (let i = 0; i < N; i++) {
+    const ti = tStart + i * dt;
+    const ai = Math.sin(W1 * ti) + Math.cos(W2 * ti);
+
+    t[i]   = ti;
+    A[i]   = ai;
+    Am[i]  = -ai;
+    Fam[i] = (1 + ai) * Math.cos(W0 * ti);
+    Ffm[i] = Math.cos((W0 + K * ai) * ti);
+}
+
+// ============================================================
+// 4. Прореживание для Chart.js (каждый 2-й отсчёт — иначе 6000 точек)
+// ============================================================
+const step = 2;
+const labels = [], dA = [], dAm = [], dFam = [], dFfm = [];
+for (let i = 0; i < N; i += step) {
+    labels.push(t[i].toFixed(3));
+    dA.push(A[i]);
+    dAm.push(Am[i]);
+    dFam.push(Fam[i]);
+    dFfm.push(Ffm[i]);
+}
+
+// ============================================================
+// 5. Построение графиков
+// ============================================================
+const commonOptions = {
+    responsive: true,
+    animation: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+        legend: { position: 'top' },
+        tooltip: { enabled: false }
+    },
+    scales: {
+        x: {
+            title: { display: true, text: 't, с' },
+            ticks: { maxTicksLimit: 12 }
+        },
+        y: { title: { display: true, text: 'Амплитуда' } }
+    },
+    elements: { point: { radius: 0 } }
+};
+
+new Chart(document.getElementById('amChart'), {
+    type: 'line',
+    data: {
+        labels,
+        datasets: [
+            { label: 'A(t) — модулирующий',      data: dA,   borderColor: 'blue',  borderWidth: 1 },
+            { label: '−A(t) — отражённый',         data: dAm,  borderColor: 'green', borderWidth: 1 },
+            { label: 'F_am(t) — АМ-сигнал',        data: dFam, borderColor: 'red',   borderWidth: 1 }
+        ]
+    },
+    options: commonOptions
+});
+
+new Chart(document.getElementById('fmChart'), {
+    type: 'line',
+    data: {
+        labels,
+        datasets: [
+            { label: 'A(t) — модулирующий',        data: dA,   borderColor: 'blue',    borderWidth: 1 },
+            { label: 'F_fm(t) — ЧМ-сигнал',        data: dFfm, borderColor: 'magenta', borderWidth: 1 }
+        ]
+    },
+    options: { ...commonOptions, scales: {
+        ...commonOptions.scales,
+        y: { title: { display: true, text: 'Сигнал' } }
+    }}
+});
+
+// ============================================================
+// 6. Вывод первых 10 значений — как disp() в Scilab
+// ============================================================
+let out = '    t, с        A(t)        F_am(t)      F_fm(t)\n';
+out   += '-------------------------------------------------\n';
+for (let i = 0; i < 10; i++) {
+    out += t[i].toFixed(3).padStart(9) + '  ' +
+           A[i].toFixed(6).padStart(11) + '  ' +
+           Fam[i].toFixed(6).padStart(11) + '  ' +
+           Ffm[i].toFixed(6).padStart(11) + '\n';
+}
+document.getElementById('log').textContent = out;
+console.log(out);
+</script>
+
+</body>
+</html>
